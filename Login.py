@@ -27,19 +27,17 @@ def hash_senha(senha):
 configurar_banco()
 app = ctk.CTk()
 app.title("Sistema de Login")
-app.geometry("350x450")
+app.geometry("550x450")
 
 # Criação dos frames (páginas)
 frame_login = ctk.CTkFrame(app)
 frame_criar_conta = ctk.CTkFrame(app)
-frame_excluir_conta = ctk.CTkFrame(app)
 frame_tabela = ctk.CTkFrame(app)
 
 # Função para alternar entre frames
 def mostrar_frame(frame):
     frame_login.pack_forget()
     frame_criar_conta.pack_forget()
-    frame_excluir_conta.pack_forget()
     frame_tabela.pack_forget()
     frame.pack(fill="both", expand=True)
 
@@ -86,29 +84,6 @@ def criar_conta():
     finally:
         conn.close()
 
-def excluir_conta():
-    usuario = campo_usuario_excluir.get()
-    senha = campo_senha_excluir.get()
-
-    if not usuario or not senha:
-        resultado_excluir_conta.configure(text="Todos os campos são obrigatórios!", text_color="red")
-        return
-
-    conn = sqlite3.connect("usuarios.db")
-    cursor = conn.cursor()
-    senha_hashed = hash_senha(senha)
-    cursor.execute("SELECT * FROM usuarios WHERE usuario = ? AND senha = ?", (usuario, senha_hashed))
-    usuario_encontrado = cursor.fetchone()
-
-    if usuario_encontrado:
-        cursor.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario,))
-        conn.commit()
-        resultado_excluir_conta.configure(text="Conta excluída com sucesso!", text_color="green")
-    else:
-        resultado_excluir_conta.configure(text="Usuário ou senha incorretos!", text_color="red")
-
-    conn.close()
-
 def carregar_usuarios():
     for widget in frame_tabela.winfo_children():
         widget.destroy()
@@ -125,8 +100,42 @@ def carregar_usuarios():
     for i, usuario in enumerate(usuarios, start=1):
         ctk.CTkLabel(frame_tabela, text=str(usuario[0]), width=50).grid(row=i, column=0, padx=5, pady=5)
         ctk.CTkLabel(frame_tabela, text=usuario[1], width=200).grid(row=i, column=1, padx=5, pady=5)
+        # Adiciona botão de exclusão
+        ctk.CTkButton(frame_tabela, text="Excluir", 
+                      command=lambda u=usuario[1]: confirmar_exclusao(u)).grid(row=i, column=2, padx=5, pady=5)
 
-    ctk.CTkButton(frame_tabela, text="Voltar", command=lambda: mostrar_frame(frame_login)).grid(row=len(usuarios)+1, column=0, columnspan=2, pady=10)
+    ctk.CTkButton(frame_tabela, text="Voltar", command=lambda: mostrar_frame(frame_login)).grid(row=len(usuarios)+1, column=0, columnspan=3, pady=10)
+
+def confirmar_exclusao(usuario):
+    # Criar uma nova janela (popup) para confirmação
+    popup = ctk.CTkToplevel(app)
+    popup.title("Confirmar Exclusão")
+    popup.geometry("300x150")
+    popup.resizable(False, False)
+    
+    ctk.CTkLabel(popup, text=f"Tem certeza que deseja excluir\n a conta '{usuario}'?", justify="center").pack(pady=20)
+    
+    # Botão para confirmar a exclusão
+    def confirmar():
+        excluir_conta(usuario)
+        popup.destroy()  # Fechar o popup
+
+    # Botão para cancelar
+    def cancelar():
+        popup.destroy()
+
+    # Botões de ação
+    ctk.CTkButton(popup, text="Sim", command=confirmar, fg_color="red").pack(side="left", padx=20, pady=10)
+    ctk.CTkButton(popup, text="Não", command=cancelar).pack(side="right", padx=20, pady=10)
+
+def excluir_conta(usuario):
+    conn = sqlite3.connect("usuarios.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM usuarios WHERE usuario = ?", (usuario,))
+    conn.commit()
+    conn.close()
+    ctk.CTkLabel(frame_tabela, text=f"A conta '{usuario}' foi excluída com sucesso!", text_color="green").grid(row=0, column=0, columnspan=3, pady=5)
+    carregar_usuarios()  # Atualiza a lista de usuários
 
 # Página de Login
 ctk.CTkLabel(frame_login, text="Usuário:").pack(pady=10)
@@ -142,7 +151,6 @@ resultado_login.pack(pady=10)
 
 ctk.CTkButton(frame_login, text="Login", command=validar_login).pack(pady=10)
 ctk.CTkButton(frame_login, text="Criar Conta", command=lambda: mostrar_frame(frame_criar_conta)).pack(pady=10)
-ctk.CTkButton(frame_login, text="Excluir Conta", command=lambda: mostrar_frame(frame_excluir_conta)).pack(pady=10)
 ctk.CTkButton(frame_login, text="Exibir Usuários", command=lambda: [carregar_usuarios(), mostrar_frame(frame_tabela)]).pack(pady=10)
 
 # Página Criar Conta
@@ -163,21 +171,6 @@ resultado_criar_conta.pack(pady=10)
 
 ctk.CTkButton(frame_criar_conta, text="Salvar", command=criar_conta).pack(pady=10)
 ctk.CTkButton(frame_criar_conta, text="Voltar", command=lambda: mostrar_frame(frame_login)).pack(pady=10)
-
-# Página Excluir Conta
-ctk.CTkLabel(frame_excluir_conta, text="Usuário:").pack(pady=10)
-campo_usuario_excluir = ctk.CTkEntry(frame_excluir_conta)
-campo_usuario_excluir.pack(pady=10)
-
-ctk.CTkLabel(frame_excluir_conta, text="Senha:").pack(pady=10)
-campo_senha_excluir = ctk.CTkEntry(frame_excluir_conta, show="*")
-campo_senha_excluir.pack(pady=10)
-
-resultado_excluir_conta = ctk.CTkLabel(frame_excluir_conta, text="")
-resultado_excluir_conta.pack(pady=10)
-
-ctk.CTkButton(frame_excluir_conta, text="Excluir", command=excluir_conta).pack(pady=10)
-ctk.CTkButton(frame_excluir_conta, text="Voltar", command=lambda: mostrar_frame(frame_login)).pack(pady=10)
 
 # Mostrar página inicial
 mostrar_frame(frame_login)
